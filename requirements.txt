@@ -1,0 +1,4 @@
+tqdm
+gymnasium
+git+https://github.com/mimoralea/gym-walk#egg=gym-walk
+tabulate
