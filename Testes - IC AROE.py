@@ -45,6 +45,7 @@ import gym_walk
 import gym as old_gym
 import numpy as np
 from tabulate import tabulate
+import matplotlib.pyplot as plt
 
 # %% [markdown]
 # ### Configurações
@@ -401,6 +402,9 @@ def q_learning(amb, gamma=1.0, ini_alpha=0.5, min_alpha=0.01, taxa_decay_alpha=0
 
     # Array utilizado para ver o progresso da avaliação da política
     pi_historico = []
+    # Lista de retornos
+    retornos = []
+
     # Inicializando a função com as dimensões do ambiente analisado e os valores zerados
     Q = np.zeros((nS, nA), dtype=np.float64)
     if verbose: print(f'{Q.shape=}')
@@ -433,12 +437,17 @@ def q_learning(amb, gamma=1.0, ini_alpha=0.5, min_alpha=0.01, taxa_decay_alpha=0
         estado, terminado = amb.reset(), False
         if verbose: print(f'{terminado=}')
         # Loop secundário --> Só para se entrarmos em um estado terminal
+        soma = 0
         while not terminado:            
             # Selecionamos a acao para o estado atual de acordo com a estratégia passada
             acao = seleciona_acao(estado, Q, epsilons[e])
             if verbose: print(f'ANTES: {estado=} {acao=} {Q[indice_estado(estado,amb.observation_space)][acao]=}')
             # Obtemos as informações de retorno do passo dado
             prox_estado, recompensa, terminado, _ = amb.step(acao)
+
+            # Soma das recompensas
+            soma += recompensa
+
             if verbose: print(f'{acao=} {prox_estado=} {recompensa=} {terminado=}')
             # Implementação da função Q-learning: Calculando o objetivo (Caso o estado seja terminal temos que zerar)
             objetivo_td = recompensa + gamma * Q[indice_estado(prox_estado,amb.observation_space)].max() * (not terminado)
@@ -457,11 +466,14 @@ def q_learning(amb, gamma=1.0, ini_alpha=0.5, min_alpha=0.01, taxa_decay_alpha=0
         # Guardamos a política atual no histórico
         pi_historico.append(np.argmax(Q, axis=1))
 
+        # Guardamos o historico de retorno
+        retornos.append(soma)
+
     # Extraímos a Função de Valor de Estado selecionando as melhores ações de Q
     V = np.max(Q, axis=1)
     # Com a Função de Valor Feita podemos obter uma política ótima
     pi = lambda s: {s:a for s, a in enumerate(np.argmax(Q, axis=1))}[indice_estado(s,amb.observation_space)]
-    return Q, V, pi, Q_historico, pi_historico
+    return Q, V, pi, Q_historico, pi_historico, retornos
 
 # %%
 # Implementação do algoritmo Q-Learning duplo
@@ -773,17 +785,36 @@ class BeerGameSimplificado(BeerGame):
 # ### **Pixie_debugger -> Problema com versão do jinja2**
 
 # %%
+
+# Função para gerar um gráfico da Curva de Aprendizado
+
+def geraCurvaDeAprendizado(retornos):
+    tamanho = len(retornos)
+    episodios = np.arange(1, tamanho+1, 1)
+    print(len(episodios))
+
+    plt.figure(figsize=(10,5))
+    plt.plot(episodios, retornos, label = 'NYA', color = 'g', lw = 2)
+    plt.title('Curva de Aprendizado')
+    plt.ylabel('Retornos')
+    plt.xlabel('Episódios')
+    plt.show()
+
+
 beer_game : BeerGameSimplificado = BeerGameSimplificado(seed=10)
 
 estado : list[int] = beer_game.reset()
 print(f'estado inicial {estado}')
 
 
-Q, V, pi, Q_historico, pi_historico = q_learning(beer_game, n_episodios=100)
+Q, V, pi, Q_historico, pi_historico, retornos = q_learning(beer_game, n_episodios=100)
 
 print(f'Q = {Q}')
 print(f'V = {V}')
 print(f'pi = {pi}')
+
+print('Criando gráfico:')
+geraCurvaDeAprendizado(retornos)
 
 print('Testando a política encontrada')
 
