@@ -393,15 +393,13 @@ def indice_estado(estado: int | list[int], obs_space) -> int:
 # Você passa a política o ambiente para qual o algoritmo criará a política, desconto de recompensa, especificações para a criação do array de 
 # decaimento exponencial de alpha e epsilon, número de episódios considerados
 def q_learning(amb, gamma=1.0, ini_alpha=0.5, min_alpha=0.01, taxa_decay_alpha=0.5, ini_epsilon=1.0, 
-          min_epsilon=0.1, taxa_decay_epsilon=0.9, n_episodios=3000, verbose=False, guardar_Q_historico=False):
+          min_epsilon=0.1, taxa_decay_epsilon=0.9, n_episodios=3000, verbose=False, guardar_historico=False):
     # Obtemos o número de estados do ambiente (nS) e o número de ações disponíveis (nA)
     nS = np.prod(amb.observation_space.nvec) if isinstance(amb.observation_space, MultiDiscrete) else amb.observation_space.n
     # nA = flatdim(amb.action_space) if isinstance(amb.action_space, MultiDiscrete) else amb.action_space.n
     nA = np.prod(amb.action_space.nvec) if isinstance(amb.action_space, MultiDiscrete) else amb.action_space.n
     if verbose: print(f"{nS=} {nA=}")
 
-    # Array utilizado para ver o progresso da avaliação da política
-    pi_historico = []
     # Lista de retornos
     retornos = []
 
@@ -409,10 +407,13 @@ def q_learning(amb, gamma=1.0, ini_alpha=0.5, min_alpha=0.01, taxa_decay_alpha=0
     Q = np.zeros((nS, nA), dtype=np.float64)
     if verbose: print(f'{Q.shape=}')
     # Array utilizado para ver o progresso da função Q a cada episodio
-    if guardar_Q_historico:
+    if guardar_historico:
         Q_historico = np.zeros((n_episodios, nS, nA), dtype=np.float64)
+        # Array utilizado para ver o progresso da avaliação da política
+        pi_historico = []
     else:
         Q_historico = None
+        pi_historico = None
 
     # Criando a estratégia de seleção de ação: Utilizamos Epsilon Ganancioso
     #     Funções anônimas (Lambda): são  funções que o usuário não precisa definir, ou seja, não vai precisar
@@ -460,11 +461,10 @@ def q_learning(amb, gamma=1.0, ini_alpha=0.5, min_alpha=0.01, taxa_decay_alpha=0
             # Passamos para o proximo estado
             estado = prox_estado      
 
-        # Guardamos a Função Q atual no histórico
-        if guardar_Q_historico:
+        # Guardamos a Função Q e politica atuais no histórico
+        if guardar_historico:
             Q_historico[e] = Q
-        # Guardamos a política atual no histórico
-        pi_historico.append(np.argmax(Q, axis=1))
+            pi_historico.append(np.argmax(Q, axis=1))
 
         # Guardamos o historico de retorno
         retornos.append(soma)
@@ -840,7 +840,7 @@ estado : list[int] = beer_game.reset()
 print(f'estado inicial {estado}')
 
 
-Q, V, pi, Q_historico, pi_historico, retornos = q_learning(beer_game, n_episodios=500)
+Q, V, pi, Q_historico, pi_historico, retornos = q_learning(beer_game, n_episodios=20000)
 
 print(f'Q = {Q}')
 print(f'V = {V}')
