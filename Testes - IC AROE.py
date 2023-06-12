@@ -653,7 +653,7 @@ class BeerGame(gym.Env):
     def step(self, action : list[int]) -> tuple[list[int], float, bool, bool, dict]:
        self.periodo_atual += 1 # Cada vez que uma ação é tomada é considerado um novo período
        
-       recompensa = 0 # Inicializamos o valor da recompensa
+       custo = 0 # Inicializamos o valor do custo
        self.pedido_ant = self.rand_generator.randint(self.pedido_max + 1) # Sorteamos um número (de 1 a 20) que será o número de cervejas solicitados pelo cliente ao Retailer
        
        # Chegaram os caminhões: Os pedidos feitos anteriormente que estavam aguardando nas filas de entrega é adicionado aos estoques
@@ -668,7 +668,7 @@ class BeerGame(gym.Env):
          self.estoques[0] = self.estoques[0] - self.pedido_ant
        else:
          # Quando pedido é maior cobra-se um custo de backlog a cada unidade de cerveja não atendida, esse custo é armazenado como recompensa
-         recompensa += (self.pedido_ant - self.estoques[0])*self.custo_de_backlog 
+         custo += (self.pedido_ant - self.estoques[0])*self.custo_de_backlog 
          self.estoques[0] = 0 # E o estoque é zerado
        
        # Decisão Wholesaler:
@@ -679,7 +679,7 @@ class BeerGame(gym.Env):
          self.entrega_retailer.append(action[0])
        else:
          # Quando pedido é maior cobra-se um custo de backlog a cada unidade de cerveja não atendida, esse custo é armazenado como recompensa
-         recompensa += (action[0] - self.estoques[1])*self.custo_de_backlog
+         custo += (action[0] - self.estoques[1])*self.custo_de_backlog
          # A quantidade que tem estoque será então transportada: adiciona-se a fila
          self.entrega_retailer.append(self.estoques[1])
          self.estoques[1] = 0 # E o estoque é zerado
@@ -692,7 +692,7 @@ class BeerGame(gym.Env):
          self.entrega_wholesaler.append(action[1])
        else:
          # Quando pedido é maior cobra-se um custo de backlog a cada unidade de cerveja não atendida, esse custo é armazenado como recompensa
-         recompensa += (action[1] - self.estoques[2])*self.custo_de_backlog
+         custo += (action[1] - self.estoques[2])*self.custo_de_backlog
          # A quantidade que tem estoque será então transportada: adiciona-se a fila
          self.entrega_wholesaler.append(self.estoques[2])
          self.estoques[2] = 0 # E o estoque é zerado
@@ -705,7 +705,7 @@ class BeerGame(gym.Env):
          self.entrega_distributor.append(action[2])
        else:
          # Quando pedido é maior cobra-se um custo de backlog a cada unidade de cerveja não atendida, esse custo é armazenado como recompensa
-         recompensa += (action[2] - self.estoques[3])*self.custo_de_backlog
+         custo += (action[2] - self.estoques[3])*self.custo_de_backlog
          # A quantidade que tem estoque será então transportada: adiciona-se a fila
          self.entrega_distributor.append(self.estoques[3])
          self.estoques[3] = 0 # E o estoque é zerado
@@ -714,9 +714,13 @@ class BeerGame(gym.Env):
        self.producao_factory.append(action[3])
        
        # Além dos custos de Backlog é adicionado o custo de estoque por cada unidade em estoque em (R, W, D, F) -> Perceba que nessa situação a recompensa é negativa
-       recompensa += sum(self.estoques)*self.custo_de_estoque
+       custo += sum(self.estoques)*self.custo_de_estoque
        # BeerGame só termina quando é atinjido o 50º período
        terminado = self.periodo_atual == self.periodo_max
+
+       # A recompensa será o negativo do custo, pois o agente tenta maximizar a recompensa e, logo,
+       # minimizará o custo
+       recompensa = -custo
 
        return np.array(self._montar_estado()), recompensa, terminado, {} # Retorna-se a observação do estado, a recompensa, se é estado terminal  
 
@@ -812,21 +816,19 @@ def avalia_politica(ambiente_par, politica, n_episodios):
         ambiente = ambiente_par
     
     if ambiente:
-        estado = ambiente.reset()
 
-        episodio = 0
         retornos = []
-        terminado = False
-        while ((not terminado) or (episodio != n_episodios)):
-            acao = politica(estado)
-            estado, recompensa, terminado, _ = ambiente.step(acao)
-            retornos.append(recompensa)
-            episodio += 1
+        for episodio in range(n_episodios):
+            estado = ambiente.reset()            
+            terminado = False
+            retorno = 0
+            while not terminado:
+                acao = politica(estado)
+                estado, recompensa, terminado, _ = ambiente.step(acao)
+                retorno += recompensa            
+            retornos.append(retorno)
         
-        soma = 0
-        for i in range(len(retornos)):
-            soma += retornos[i]
-        media_recompensa = soma/len(retornos)
+        media_recompensa = np.sum(retornos)/len(retornos)
 
         return media_recompensa, retornos
     else:
@@ -840,7 +842,7 @@ estado : list[int] = beer_game.reset()
 print(f'estado inicial {estado}')
 
 
-Q, V, pi, Q_historico, pi_historico, retornos = q_learning(beer_game, n_episodios=20000)
+Q, V, pi, Q_historico, pi_historico, retornos = q_learning(beer_game, n_episodios=20)
 
 print(f'Q = {Q}')
 print(f'V = {V}')
@@ -850,7 +852,8 @@ print('Criando gráfico:')
 geraCurvaDeAprendizado(retornos)
 
 print('Testando função de avaliação:')
-media, retorno = avalia_politica(beer_game, pi, 500)
+
+media, retorno = avalia_politica(beer_game, pi, 5)
 print(f'media = {media}')
 print(f'retorno = {retorno}')
 
