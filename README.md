@@ -1,6 +1,6 @@
 # IC-Reinforcement-Learning
 
-## Ao usar o Script Python pela primeira
+## Ao usar o Script Python pela primeira vez
 
 1. Criar e ativar ambiente virtual do Python
 
@@ -14,6 +14,12 @@ Set-ExecutionPolicy Unrestricted -Scope Process
 
 ```shell script
 python -m pip install -r requirements.txt
+```
+
+3. No Linux: instalar `python-tk` para conseguir usar matplotlib
+
+```shell script
+sudo apt-get install python3-tk
 ```
 
 # Sempre que usar o Script Python
