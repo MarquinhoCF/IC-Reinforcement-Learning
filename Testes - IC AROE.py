@@ -786,12 +786,11 @@ class BeerGameSimplificado(BeerGame):
 
 # %%
 
-# Função para gerar um gráfico da Curva de Aprendizado
 
+# Função para gerar um gráfico da Curva de Aprendizado
 def geraCurvaDeAprendizado(retornos):
     tamanho = len(retornos)
     episodios = np.arange(1, tamanho+1, 1)
-    print(len(episodios))
 
     plt.figure(figsize=(10,5))
     plt.plot(episodios, retornos, label = 'NYA', color = 'g', lw = 2)
@@ -801,13 +800,47 @@ def geraCurvaDeAprendizado(retornos):
     plt.show()
 
 
+# Função de avaliação de política
+def avalia_politica(ambiente_par, politica, n_episodios):
+    
+    # Se foi passada uma string, assume-se que é um ambiente gym
+    if isinstance(ambiente_par, str):
+        ambiente_valid = gym.make(ambiente, render_mode="rgb_array")
+        ambiente = ambiente_valid.env.P
+    else: # caso contrário, assume-se que foi passado o MDP diretamete
+        ambiente_valid = None
+        ambiente = ambiente_par
+    
+    if ambiente:
+        estado = ambiente.reset()
+
+        episodio = 0
+        retornos = []
+        terminado = False
+        while ((not terminado) or (episodio != n_episodios)):
+            acao = politica(estado)
+            estado, recompensa, terminado, _ = ambiente.step(acao)
+            retornos.append(recompensa)
+            episodio += 1
+        
+        soma = 0
+        for i in range(len(retornos)):
+            soma += retornos[i]
+        media_recompensa = soma/len(retornos)
+
+        return media_recompensa, retornos
+    else:
+        print("ATENÇÃO: o ambiente não foi configurado corretamente!")
+        return -1, []
+
+
 beer_game : BeerGameSimplificado = BeerGameSimplificado(seed=10)
 
 estado : list[int] = beer_game.reset()
 print(f'estado inicial {estado}')
 
 
-Q, V, pi, Q_historico, pi_historico, retornos = q_learning(beer_game, n_episodios=100)
+Q, V, pi, Q_historico, pi_historico, retornos = q_learning(beer_game, n_episodios=500)
 
 print(f'Q = {Q}')
 print(f'V = {V}')
@@ -816,14 +849,19 @@ print(f'pi = {pi}')
 print('Criando gráfico:')
 geraCurvaDeAprendizado(retornos)
 
-print('Testando a política encontrada')
+print('Testando função de avaliação:')
+media, retorno = avalia_politica(beer_game, pi, 500)
+print(f'media = {media}')
+print(f'retorno = {retorno}')
 
-estado : list[int] = beer_game.reset()
-done = False
-while not done:
-    acao : int = pi(estado)
-    print(f'{acao=}')
-    estado, reward, done, info = beer_game.step(acao)
-    print(f'{estado=}, {reward=}, {done=}, {info=}')    
+#print('Testando a política encontrada')
+
+#estado : list[int] = beer_game.reset()
+#done = False
+#while not done:
+#    acao : int = pi(estado)
+#    print(f'{acao=}')
+#    estado, reward, done, info = beer_game.step(acao)
+#    print(f'{estado=}, {reward=}, {done=}, {info=}')    
 
 
