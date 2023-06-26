@@ -46,6 +46,7 @@ import gym as old_gym
 import numpy as np
 from tabulate import tabulate
 import matplotlib.pyplot as plt
+import sys
 
 # %% [markdown]
 # ### Configurações
@@ -430,8 +431,8 @@ def q_learning(amb, gamma=1.0, ini_alpha=0.5, min_alpha=0.01, taxa_decay_alpha=0
 
     # Loop principal com tqdm
     # e --> Número da iteração
-    # for e in tqdm(range(n_episodios), leave=False):
-    for e in range(n_episodios):
+    # for e in range(n_episodios):
+    for e in tqdm(range(n_episodios), leave=False):
         if verbose: print(f'{e=}')
         # Resetamos o ambiente para garantir que ele esteja pronto para ser analisado
         # Obtemos o estado inicial e se o estado é terminal
@@ -790,19 +791,40 @@ class BeerGameSimplificado(BeerGame):
 
 # %%
 
+cores = ["r", "g", "b", "c", "m", "y", "k", "w"]
+
+# FUNÇÕES ÚTEIS:
 
 # Função para gerar um gráfico da Curva de Aprendizado
-def geraCurvaDeAprendizado(retornos):
-    tamanho = len(retornos)
-    episodios = np.arange(1, tamanho+1, 1)
+def geraCurvaDeAprendizado(retornos, multiplo):
+    if multiplo:
+        tamanho = len(retornos)
+        maior = 0
+        for i in range(tamanho):
+            eps = len(retornos[i])
+            if eps > maior:
+                maior = eps
 
-    plt.figure(figsize=(10,5))
-    plt.plot(episodios, retornos, label = 'NYA', color = 'g', lw = 2)
-    plt.title('Curva de Aprendizado')
-    plt.ylabel('Retornos')
-    plt.xlabel('Episódios')
-    plt.show()
+        episodios = np.arange(1, tamanho+1, 1)
 
+        plt.figure(figsize=(10,5))
+        for i in range(tamanho):
+            plt.plot(episodios, retornos[i], label = 'NYA', color = cores[i], lw = 2)
+        plt.title('Curva de Aprendizado')
+        plt.ylabel('Retornos')
+        plt.xlabel('Episódios')
+        plt.show()
+
+    else:
+        tamanho = len(retornos)
+        episodios = np.arange(1, tamanho+1, 1)
+
+        plt.figure(figsize=(10,5))
+        plt.plot(episodios, retornos, label = 'NYA', color = 'g', lw = 2)
+        plt.title('Curva de Aprendizado')
+        plt.ylabel('Retornos')
+        plt.xlabel('Episódios')
+        plt.show()
 
 # Função de avaliação de política
 def avalia_politica(ambiente_par, politica, n_episodios):
@@ -818,7 +840,9 @@ def avalia_politica(ambiente_par, politica, n_episodios):
     if ambiente:
 
         retornos = []
-        for episodio in range(n_episodios):
+
+        # for episodio in range(n_episodios):
+        for episodio in tqdm(range(n_episodios), leave=False):
             estado = ambiente.reset()            
             terminado = False
             retorno = 0
@@ -835,36 +859,64 @@ def avalia_politica(ambiente_par, politica, n_episodios):
         print("ATENÇÃO: o ambiente não foi configurado corretamente!")
         return -1, []
 
+# Função que salva os retornos em um arquivo .npy
+def salvaRetornos(retornos):
+    if (len(retornos) > 0):
+        print("Digite seu o nome do arquivo a ser salvo\nLembre-se não digite a extensão do arquivo (exemplo: .txt)\nNome:")
+        nome = input()
+        retornos = np.array(retornos)
+        np.save(nome, retornos)
+        print("O array foi salvo no arquivo " + nome + ".npy") 
+    else:
+        print("O array retornos está vazio")
 
+# Função que carrega os retornos em um array para sua utilização
+def carregaRetornos():
+    print("Digite seu o nome do arquivo a ser caregado\nLembre-se é necessário que se digite a extensão do arquivo (exemplo: .txt)\nNome:")
+    nome = input() + ".npy"
+    retornos = np.load(nome)
+    print("O arquivo " + nome + ".npy foi carregado com sucesso!")
+    return retornos, nome
+
+def comparaAvaliacoes():
+    print("Digite a quantidade de arquivos a serem comparados")
+    n = input()
+    avaliacoes = []
+    for i in range(n):
+        retorno, nome = carregaRetornos()
+        print("Avaliando dados de " + nome + ".npy...")
+        media, retorno = avalia_politica(beer_game, pi, n_episodios = 5)
+        print(nome + ".npy média de: " + media)
+        avaliacoes.append(retorno)
+    
+    geraCurvaDeAprendizado(avaliacoes, True)
+
+# AMBIENTE DE TESTES
+
+# Variáveis bolleanas importantes:
+usa_arquivo = True
+
+# Testes realizados:
 beer_game : BeerGameSimplificado = BeerGameSimplificado(seed=10)
 
 estado : list[int] = beer_game.reset()
-print(f'estado inicial {estado}')
+print('Ambiente Configurado\n')
+print(f'Estado inicial {estado}')
 
+print('\n\n')
+if (usa_arquivo):
+    retornos, _ = carregaRetornos()
+else:
+    Q, V, pi, Q_historico, pi_historico, retornos = q_learning(beer_game, n_episodios=2000000)
+    print(f'Q = {Q}')
+    print(f'V = {V}')
+    print(f'pi = {pi}')
+    salvaRetornos(retornos)
 
-Q, V, pi, Q_historico, pi_historico, retornos = q_learning(beer_game, n_episodios=20)
+print('\n\nCriando gráfico:')
+geraCurvaDeAprendizado(retornos, False)
 
-print(f'Q = {Q}')
-print(f'V = {V}')
-print(f'pi = {pi}')
-
-print('Criando gráfico:')
-geraCurvaDeAprendizado(retornos)
-
-print('Testando função de avaliação:')
-
-media, retorno = avalia_politica(beer_game, pi, 5)
+print('\n\nTestando função de avaliação:')
+media, retorno = avalia_politica(beer_game, pi, n_episodios = 5)
 print(f'media = {media}')
 print(f'retorno = {retorno}')
-
-#print('Testando a política encontrada')
-
-#estado : list[int] = beer_game.reset()
-#done = False
-#while not done:
-#    acao : int = pi(estado)
-#    print(f'{acao=}')
-#    estado, reward, done, info = beer_game.step(acao)
-#    print(f'{estado=}, {reward=}, {done=}, {info=}')    
-
-
