@@ -368,7 +368,8 @@ def sarsa(amb, gamma=1.0, ini_alpha=0.5, min_alpha=0.01, taxa_decay_alpha=0.5, i
     # Extraímos a Função de Valor de Estado selecionando as melhores ações de Q
     V = np.max(Q, axis=1)
     # Com a Função de Valor Feita podemos obter uma política ótima
-    pi = lambda s: {s:a for s, a in enumerate(np.argmax(Q, axis=1))}[s]
+    #pi = lambda s: {s:a for s, a in enumerate(np.argmax(Q, axis=1))}[s]
+    pi = np.argmax(Q, axis=1)
     return Q, V, pi, Q_historico, pi_historico
 
 # %%
@@ -473,7 +474,8 @@ def q_learning(amb, gamma=1.0, ini_alpha=0.5, min_alpha=0.01, taxa_decay_alpha=0
     # Extraímos a Função de Valor de Estado selecionando as melhores ações de Q
     V = np.max(Q, axis=1)
     # Com a Função de Valor Feita podemos obter uma política ótima
-    pi = lambda s: {s:a for s, a in enumerate(np.argmax(Q, axis=1))}[indice_estado(s,amb.observation_space)]
+    #pi = lambda s: {s:a for s, a in enumerate(np.argmax(Q, axis=1))}[indice_estado(s,amb.observation_space)]
+    pi = np.argmax(Q, axis=1)
     return Q, V, pi, Q_historico, pi_historico, retornos
 
 # %%
@@ -894,12 +896,14 @@ def comparaAvaliacoes():
 # AMBIENTE DE TESTES
 
 # Variáveis bolleanas importantes:
-usa_arquivo = True
+usa_arquivo = False
 
 # Testes realizados:
-beer_game : BeerGameSimplificado = BeerGameSimplificado(seed=10)
+#beer_game : BeerGameSimplificado = BeerGameSimplificado(seed=10)
+#estado : list[int] = beer_game.reset()
 
-estado : list[int] = beer_game.reset()
+FrozenLake = old_gym.make('FrozenLake-v1')
+estado = FrozenLake.reset()
 print('Ambiente Configurado\n')
 print(f'Estado inicial {estado}')
 
@@ -907,7 +911,7 @@ print('\n\n')
 if (usa_arquivo):
     retornos, _ = carregaRetornos()
 else:
-    Q, V, pi, Q_historico, pi_historico, retornos = q_learning(beer_game, n_episodios=2000000)
+    Q, V, pi, Q_historico, pi_historico, retornos = q_learning(FrozenLake, n_episodios=2000)
     print(f'Q = {Q}')
     print(f'V = {V}')
     print(f'pi = {pi}')
@@ -917,6 +921,7 @@ print('\n\nCriando gráfico:')
 geraCurvaDeAprendizado(retornos, False)
 
 print('\n\nTestando função de avaliação:')
-media, retorno = avalia_politica(beer_game, pi, n_episodios = 5)
+#politica = lambda s : pi[indice_estado(s,beer_game.observation_space)]
+media, retorno = avalia_politica(FrozenLake, pi, n_episodios = 2000)
 print(f'media = {media}')
 print(f'retorno = {retorno}')
