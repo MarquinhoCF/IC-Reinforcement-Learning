@@ -807,7 +807,7 @@ def geraCurvaDeAprendizado(retornos, multiplo):
             if eps > maior:
                 maior = eps
 
-        episodios = np.arange(1, tamanho+1, 1)
+        episodios = np.arange(1, maior+1, 1)
 
         plt.figure(figsize=(10,5))
         for i in range(tamanho):
@@ -862,35 +862,62 @@ def avalia_politica(ambiente_par, politica, n_episodios):
         return -1, []
 
 # Função que salva os retornos em um arquivo .npy
-def salvaRetornos(retornos):
-    if (len(retornos) > 0):
-        print("Digite seu o nome do arquivo a ser salvo\nLembre-se não digite a extensão do arquivo (exemplo: .txt)\nNome:")
-        nome = input()
+def salvaResultados(retornos, pi):
+    if ((len(retornos) > 0) and (len(pi) > 0)):
+        print("Digite o nome do ambiente testado a ser salvo\nAmbiente: ")
+        nomeAmb = input()
+        print("Digite a quantidade de passos realizado no teste\nSerá utilizado no nome do arquivo (exemplo: 2K para -> 2000 passos)\nQuantidade de passos: ")
+        qutdEps = input()
+        print("Digite o número do teste realizado\nNúmero: ")
+        numero = input()
+        nome1 = "Retornos_" + nomeAmb + "_" + qutdEps + "_eps_v" + numero
+        nome2 = "Politica_" + nomeAmb + "_" + qutdEps + "_eps_v" + numero
         retornos = np.array(retornos)
-        np.save(nome, retornos)
-        print("O array foi salvo no arquivo " + nome + ".npy") 
+        pi = np.array(pi)
+        np.save(nome1, retornos)
+        np.save(nome2, pi)
+        print("Os resultados foram salvos nos arquivos") 
     else:
-        print("O array retornos está vazio")
+        print("Erro: Array vazio!!")
 
 # Função que carrega os retornos em um array para sua utilização
-def carregaRetornos():
-    print("Digite seu o nome do arquivo a ser caregado\nLembre-se é necessário que se digite a extensão do arquivo (exemplo: .txt)\nNome:")
-    nome = input() + ".npy"
-    retornos = np.load(nome)
-    print("O arquivo " + nome + ".npy foi carregado com sucesso!")
-    return retornos, nome
+def carregaResultados(nomeAmb, qtdEps, numero):
+    nome1 = "Retornos_" + nomeAmb + "_" + qtdEps + "_eps_v"+ str(numero) + ".npy"
+    nome2 = "Politica_" + nomeAmb + "_" + qtdEps + "_eps_v"+ str(numero) + ".npy"
+    retornos = np.load(nome1)
+    pi = np.load(nome2)
+    print("Os arquivos " + nome1 + ".npy e " + nome2 + ".npy foram carregados com sucesso!")
+    return retornos, pi
 
 def comparaAvaliacoes():
-    print("Digite a quantidade de arquivos a serem comparados")
+    print("============== Comparando diferentes Avaliações =================")
+    print("\nDigite a quantidade de passos a serem utilizados na função de avaliação")
+    eps = input()
+    eps = int(eps)
+    print("\nDigite a quantidade de arquivos a serem comparados")
     n = input()
+    n = int(n) 
+    print("\nPasse as informações sobre os arquivos a serem avaliados:")
+    print("Digite o nome do ambiente testado a ser carregado\nAmbiente: ")
+    nomeAmb = input()
+    print("Digite a quantidade de passos realizado no teste\nExemplo: 2K para -> 2000 passos\nQuantidade de passos: ")
+    qtdEps = input()
+
     avaliacoes = []
+    medias = []
     for i in range(n):
-        retorno, nome = carregaRetornos()
-        print("Avaliando dados de " + nome + ".npy...")
-        media, retorno = avalia_politica(beer_game, pi, n_episodios = 5)
-        print(nome + ".npy média de: " + media)
+        print("\n")
+        print(f'Recebendo dados do {i+1}º arquivo...')
+        retorno, pi = carregaResultados(nomeAmb, qtdEps, i)
+        print("Avaliando dados...")
+        politica = lambda s : pi[indice_estado(s,beer_game.observation_space)]
+        media, retorno = avalia_politica(beer_game, politica, eps)
+        medias.append(media)
         avaliacoes.append(retorno)
     
+    print("\n\n============> Avaliação:")
+    print(f'Medias = {medias}')
+    print(f'O arquivo que possui maior média é o {(np.argmax(medias)) + 1}º')
     geraCurvaDeAprendizado(avaliacoes, True)
 
 # AMBIENTE DE TESTES
@@ -899,29 +926,40 @@ def comparaAvaliacoes():
 usa_arquivo = False
 
 # Testes realizados:
-#beer_game : BeerGameSimplificado = BeerGameSimplificado(seed=10)
-#estado : list[int] = beer_game.reset()
 
-FrozenLake = old_gym.make('FrozenLake-v1')
-estado = FrozenLake.reset()
+# SCRIPT PARA O FROZEN LAKE
+#FrozenLake = old_gym.make('FrozenLake-v1')
+#estado = FrozenLake.reset()
+
+beer_game : BeerGameSimplificado = BeerGameSimplificado(seed=10)
+estado : list[int] = beer_game.reset()
 print('Ambiente Configurado\n')
 print(f'Estado inicial {estado}')
 
 print('\n\n')
 if (usa_arquivo):
-    retornos, _ = carregaRetornos()
+    print("Digite o nome do ambiente testado a ser carregado\nAmbiente: ")
+    nomeAmb = input()
+    print("Digite a quantidade de passos realizado no teste\nExemplo: 2K para -> 2000 passos\nQuantidade de passos: ")
+    qtdEps = input()
+    print("Digite o número do teste realizado\nNúmero: ")
+    numero = input()
+    retornos, pi = carregaResultados(nomeAmb, qtdEps, numero)
 else:
-    Q, V, pi, Q_historico, pi_historico, retornos = q_learning(FrozenLake, n_episodios=2000)
-    print(f'Q = {Q}')
-    print(f'V = {V}')
-    print(f'pi = {pi}')
-    salvaRetornos(retornos)
+    Q, V, pi, Q_historico, pi_historico, retornos = q_learning(beer_game, n_episodios=2000)
+    #print(f'Q = {Q}')
+    #print(f'V = {V}')
+    #print(f'pi = {pi}')
+    salvaResultados(retornos, pi)
 
 print('\n\nCriando gráfico:')
 geraCurvaDeAprendizado(retornos, False)
 
-print('\n\nTestando função de avaliação:')
+print('\n\nTestando função que compara avaliações:')
+comparaAvaliacoes()
+
+#print('\n\nTestando função de avaliação:')
 #politica = lambda s : pi[indice_estado(s,beer_game.observation_space)]
-media, retorno = avalia_politica(FrozenLake, pi, n_episodios = 2000)
-print(f'media = {media}')
-print(f'retorno = {retorno}')
+#media, retorno = avalia_politica(beer_game, politica, n_episodios = 2000)
+#print(f'media = {media}')
+#print(f'retorno = {retorno}')
