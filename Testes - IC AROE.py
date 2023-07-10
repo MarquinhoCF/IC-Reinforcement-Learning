@@ -344,7 +344,7 @@ def sarsa(amb, gamma=1.0, ini_alpha=0.5, min_alpha=0.01, taxa_decay_alpha=0.5, i
         # Loop secundário --> Só para se entrarmos em um estado terminal
         while not terminado:
             # Obtemos as informações de retorno do passo dado
-            prox_estado, recompensa, terminado, _ = amb.step(acao)
+            prox_estado, recompensa, terminado, truncado, _ = amb.step(acao)
 
             # Selecionamos a acao para o estado atual de acordo com a estratégia passada
             # Observe que antes de fazer qualquer cálculo, precisamos obter a ação para a próxima etapa.
@@ -378,7 +378,7 @@ def sarsa(amb, gamma=1.0, ini_alpha=0.5, min_alpha=0.01, taxa_decay_alpha=0.5, i
 from gymnasium.spaces import Discrete, MultiDiscrete
 from gymnasium.spaces.utils import flatdim
 
-def indice_estado(estado: int | list[int], obs_space) -> int:
+def indice_estado_beergame(estado: int | list[int], obs_space) -> int:
     """ Converte um estado em um índice para o array Q 
         Faz a conta: 550*500*20*a + 500*20*b + 20*c + d
     """
@@ -392,10 +392,14 @@ def indice_estado(estado: int | list[int], obs_space) -> int:
     else:
         return estado
 
+def indice_estado_geral(estado: int | list[int], obs_space) -> int:
+    return estado
+
 # Você passa a política o ambiente para qual o algoritmo criará a política, desconto de recompensa, especificações para a criação do array de 
 # decaimento exponencial de alpha e epsilon, número de episódios considerados
 def q_learning(amb, gamma=1.0, ini_alpha=0.5, min_alpha=0.01, taxa_decay_alpha=0.5, ini_epsilon=1.0, 
-          min_epsilon=0.1, taxa_decay_epsilon=0.9, n_episodios=3000, verbose=False, guardar_historico=False):
+          min_epsilon=0.1, taxa_decay_epsilon=0.9, n_episodios=3000, verbose=False, guardar_historico=False,
+          indice_estado=indice_estado_geral):
     # Obtemos o número de estados do ambiente (nS) e o número de ações disponíveis (nA)
     nS = np.prod(amb.observation_space.nvec) if isinstance(amb.observation_space, MultiDiscrete) else amb.observation_space.n
     # nA = flatdim(amb.action_space) if isinstance(amb.action_space, MultiDiscrete) else amb.action_space.n
@@ -437,16 +441,18 @@ def q_learning(amb, gamma=1.0, ini_alpha=0.5, min_alpha=0.01, taxa_decay_alpha=0
         if verbose: print(f'{e=}')
         # Resetamos o ambiente para garantir que ele esteja pronto para ser analisado
         # Obtemos o estado inicial e se o estado é terminal
-        estado, terminado = amb.reset(), False
+        estado, _ = amb.reset()
+        terminado = False
+        truncado = False
         if verbose: print(f'{terminado=}')
         # Loop secundário --> Só para se entrarmos em um estado terminal
         soma = 0
-        while not terminado:            
+        while not (terminado or truncado):
             # Selecionamos a acao para o estado atual de acordo com a estratégia passada
             acao = seleciona_acao(estado, Q, epsilons[e])
             if verbose: print(f'ANTES: {estado=} {acao=} {Q[indice_estado(estado,amb.observation_space)][acao]=}')
             # Obtemos as informações de retorno do passo dado
-            prox_estado, recompensa, terminado, _ = amb.step(acao)
+            prox_estado, recompensa, terminado, truncado, _ = amb.step(acao)
 
             # Soma das recompensas
             soma += recompensa
@@ -526,7 +532,7 @@ def double_q_learning(amb, gamma=1.0, ini_alpha=0.5, min_alpha=0.01, taxa_decay_
             acao = seleciona_acao(estado, (Q1 + Q2)/2., epsilons[e])
 
             # Obtemos as informações de retorno do passo dado
-            prox_estado, recompensa, terminado, _ = amb.step(acao)
+            prox_estado, recompensa, terminado, truncado, _ = amb.step(acao)
 
             # Escolhemos aleatoriamente (50%) qual função Q usar
             if np.random.randint(2):
@@ -650,7 +656,7 @@ class BeerGame(gym.Env):
     def reset(self) -> list[int]:
        self._inicializar_cadeia() # Reinicializa os arrays com os valores iniciais
        self.periodo_atual = 0 # Reinicia a contagem do período
-       return np.array(self._montar_estado()) # retorna uma observação do estado inicial
+       return np.array(self._montar_estado()), {} # retorna uma observação do estado inicial
     
     # Esse método executa a ação escolhida no ambiente e retorna uma observação do estado, recompensa, se o estado é terminal e uma informação
     def step(self, action : list[int]) -> tuple[list[int], float, bool, bool, dict]:
@@ -720,12 +726,13 @@ class BeerGame(gym.Env):
        custo += sum(self.estoques)*self.custo_de_estoque
        # BeerGame só termina quando é atinjido o 50º período
        terminado = self.periodo_atual == self.periodo_max
+       truncado = False # Não há limite de tempo para o BeerGame, logo não há truncamento
 
        # A recompensa será o negativo do custo, pois o agente tenta maximizar a recompensa e, logo,
        # minimizará o custo
        recompensa = -custo
 
-       return np.array(self._montar_estado()), recompensa, terminado, {} # Retorna-se a observação do estado, a recompensa, se é estado terminal  
+       return np.array(self._montar_estado()), recompensa, terminado, truncado, {} # Retorna-se a observação do estado, a recompensa, se é estado terminal  
 
     # Esse método imprime uma observação do estado
     def render(self, mode : str ="human") -> Any: # opcional
@@ -850,7 +857,7 @@ def avalia_politica(ambiente_par, politica, n_episodios):
             retorno = 0
             while not terminado:
                 acao = politica(estado)
-                estado, recompensa, terminado, _ = ambiente.step(acao)
+                estado, recompensa, terminado, truncado, _ = ambiente.step(acao)
                 retorno += recompensa            
             retornos.append(retorno)
         
@@ -889,14 +896,12 @@ def carregaResultados(nomeAmb, qtdEps, numero):
     print("Os arquivos " + nome1 + ".npy e " + nome2 + ".npy foram carregados com sucesso!")
     return retornos, pi
 
-def comparaAvaliacoes():
+def comparaAvaliacoes(ambiente, indice_estado=indice_estado_geral):
     print("============== Comparando diferentes Avaliações =================")
-    print("\nDigite a quantidade de passos a serem utilizados na função de avaliação")
-    eps = input()
-    eps = int(eps)
+    print("\nDigite a quantidade de episódios a serem utilizados na função de avaliação")
+    eps = int(input())
     print("\nDigite a quantidade de arquivos a serem comparados")
-    n = input()
-    n = int(n) 
+    n = int(input())
     print("\nPasse as informações sobre os arquivos a serem avaliados:")
     print("Digite o nome do ambiente testado a ser carregado\nAmbiente: ")
     nomeAmb = input()
@@ -910,8 +915,8 @@ def comparaAvaliacoes():
         print(f'Recebendo dados do {i+1}º arquivo...')
         retorno, pi = carregaResultados(nomeAmb, qtdEps, i)
         print("Avaliando dados...")
-        politica = lambda s : pi[indice_estado(s,beer_game.observation_space)]
-        media, retorno = avalia_politica(beer_game, politica, eps)
+        politica = lambda s : pi[indice_estado(s,ambiente.observation_space)]
+        media, retorno = avalia_politica(ambiente, politica, eps)
         medias.append(media)
         avaliacoes.append(retorno)
     
@@ -928,11 +933,13 @@ usa_arquivo = False
 # Testes realizados:
 
 # SCRIPT PARA O FROZEN LAKE
-#FrozenLake = old_gym.make('FrozenLake-v1')
-#estado = FrozenLake.reset()
+ambiente = old_gym.make('FrozenLake-v1')
+indice_estado = indice_estado_geral
 
-beer_game : BeerGameSimplificado = BeerGameSimplificado(seed=10)
-estado : list[int] = beer_game.reset()
+#ambiente : BeerGameSimplificado = BeerGameSimplificado(seed=10)
+#indice_estado = indice_estado_beergame
+
+estado = ambiente.reset()
 print('Ambiente Configurado\n')
 print(f'Estado inicial {estado}')
 
@@ -946,7 +953,7 @@ if (usa_arquivo):
     numero = input()
     retornos, pi = carregaResultados(nomeAmb, qtdEps, numero)
 else:
-    Q, V, pi, Q_historico, pi_historico, retornos = q_learning(beer_game, n_episodios=2000)
+    Q, V, pi, Q_historico, pi_historico, retornos = q_learning(ambiente, n_episodios=200000, indice_estado=indice_estado)
     #print(f'Q = {Q}')
     #print(f'V = {V}')
     #print(f'pi = {pi}')
@@ -956,7 +963,7 @@ print('\n\nCriando gráfico:')
 geraCurvaDeAprendizado(retornos, False)
 
 print('\n\nTestando função que compara avaliações:')
-comparaAvaliacoes()
+comparaAvaliacoes(ambiente, indice_estado=indice_estado)
 
 #print('\n\nTestando função de avaliação:')
 #politica = lambda s : pi[indice_estado(s,beer_game.observation_space)]
