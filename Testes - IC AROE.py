@@ -805,35 +805,16 @@ cores = ["r", "g", "b", "c", "m", "y", "k", "w"]
 # FUNÇÕES ÚTEIS:
 
 # Função para gerar um gráfico da Curva de Aprendizado
-def geraCurvaDeAprendizado(retornos, multiplo):
-    if multiplo:
-        tamanho = len(retornos)
-        maior = 0
-        for i in range(tamanho):
-            eps = len(retornos[i])
-            if eps > maior:
-                maior = eps
+def geraCurvaDeAprendizado(retornos):
+    tamanho = len(retornos)
+    episodios = np.arange(1, tamanho+1, 1)
 
-        episodios = np.arange(1, maior+1, 1)
-
-        plt.figure(figsize=(10,5))
-        for i in range(tamanho):
-            plt.plot(episodios, retornos[i], label = 'NYA', color = cores[i], lw = 2)
-        plt.title('Curva de Aprendizado')
-        plt.ylabel('Retornos')
-        plt.xlabel('Episódios')
-        plt.show()
-
-    else:
-        tamanho = len(retornos)
-        episodios = np.arange(1, tamanho+1, 1)
-
-        plt.figure(figsize=(10,5))
-        plt.plot(episodios, retornos, label = 'NYA', color = 'g', lw = 2)
-        plt.title('Curva de Aprendizado')
-        plt.ylabel('Retornos')
-        plt.xlabel('Episódios')
-        plt.show()
+    plt.figure(figsize=(10,5))
+    plt.plot(episodios, retornos, label = 'NYA', color = 'g', lw = 2)
+    plt.title('Curva de Aprendizado')
+    plt.ylabel('Retornos')
+    plt.xlabel('Episódios')
+    plt.show()
 
 # Função de avaliação de política
 def avalia_politica(ambiente_par, politica, n_episodios):
@@ -869,16 +850,14 @@ def avalia_politica(ambiente_par, politica, n_episodios):
         return -1, []
 
 # Função que salva os retornos em um arquivo .npy
-def salvaResultados(retornos, pi):
+def salvaResultados(retornos, qutdEps, pi):
     if ((len(retornos) > 0) and (len(pi) > 0)):
         print("Digite o nome do ambiente testado a ser salvo\nAmbiente: ")
         nomeAmb = input()
-        print("Digite a quantidade de passos realizado no teste\nSerá utilizado no nome do arquivo (exemplo: 2K para -> 2000 passos)\nQuantidade de passos: ")
-        qutdEps = input()
         print("Digite o número do teste realizado\nNúmero: ")
         numero = input()
-        nome1 = "Retornos_" + nomeAmb + "_" + qutdEps + "_eps_v" + numero
-        nome2 = "Politica_" + nomeAmb + "_" + qutdEps + "_eps_v" + numero
+        nome1 = "dados\Retornos_" + nomeAmb + "_" + str(qutdEps) + "_eps_v" + numero
+        nome2 = "dados\Politica_" + nomeAmb + "_" + str(qutdEps) + "_eps_v" + numero
         retornos = np.array(retornos)
         pi = np.array(pi)
         np.save(nome1, retornos)
@@ -889,8 +868,8 @@ def salvaResultados(retornos, pi):
 
 # Função que carrega os retornos em um array para sua utilização
 def carregaResultados(nomeAmb, qtdEps, numero):
-    nome1 = "Retornos_" + nomeAmb + "_" + qtdEps + "_eps_v"+ str(numero) + ".npy"
-    nome2 = "Politica_" + nomeAmb + "_" + qtdEps + "_eps_v"+ str(numero) + ".npy"
+    nome1 = "dados\Retornos_" + nomeAmb + "_" + qtdEps + "_eps_v"+ str(numero) + ".npy"
+    nome2 = "dados\Politica_" + nomeAmb + "_" + qtdEps + "_eps_v"+ str(numero) + ".npy"
     retornos = np.load(nome1)
     pi = np.load(nome2)
     print("Os arquivos " + nome1 + ".npy e " + nome2 + ".npy foram carregados com sucesso!")
@@ -923,7 +902,24 @@ def comparaAvaliacoes(ambiente, indice_estado=indice_estado_geral):
     print("\n\n============> Avaliação:")
     print(f'Medias = {medias}')
     print(f'O arquivo que possui maior média é o {(np.argmax(medias)) + 1}º')
-    geraCurvaDeAprendizado(avaliacoes, True)
+    
+    #tamanho = len(avaliacoes)
+    #maior = 0
+    #for i in range(tamanho):
+    #    eps = len(avaliacoes[i])
+    #    if eps > maior:
+    #        maior = eps
+
+    #t = np.arange(1, maior+1, 1)
+    
+    #fig, ax = plt.subplots()
+    #for i in range(n):
+    #    ax.bar(t, avaliacoes[i])
+    #    plt.plot([0, maior], [medias[i], medias[i]])
+
+    #ax.set_title('Avaliações')
+    #plt.show()
+
 
 # AMBIENTE DE TESTES
 
@@ -933,11 +929,11 @@ usa_arquivo = False
 # Testes realizados:
 
 # SCRIPT PARA O FROZEN LAKE
-ambiente = old_gym.make('FrozenLake-v1')
-indice_estado = indice_estado_geral
+#ambiente = old_gym.make('FrozenLake-v1')
+#indice_estado = indice_estado_geral
 
-#ambiente : BeerGameSimplificado = BeerGameSimplificado(seed=10)
-#indice_estado = indice_estado_beergame
+ambiente : BeerGameSimplificado = BeerGameSimplificado(seed=10)
+indice_estado = indice_estado_beergame
 
 estado = ambiente.reset()
 print('Ambiente Configurado\n')
@@ -953,11 +949,11 @@ if (usa_arquivo):
     numero = input()
     retornos, pi = carregaResultados(nomeAmb, qtdEps, numero)
 else:
-    Q, V, pi, Q_historico, pi_historico, retornos = q_learning(ambiente, n_episodios=200000, indice_estado=indice_estado)
-    #print(f'Q = {Q}')
-    #print(f'V = {V}')
-    #print(f'pi = {pi}')
-    salvaResultados(retornos, pi)
+    print("========================= Executando Q leaning ===========================")
+    print("\nDigite a quantidade de episódios a serem utilizados para o Q Learning:")
+    eps = int(input())
+    Q, V, pi, Q_historico, pi_historico, retornos = q_learning(ambiente, n_episodios=eps, indice_estado=indice_estado)
+    salvaResultados(retornos, eps, pi)
 
 print('\n\nCriando gráfico:')
 geraCurvaDeAprendizado(retornos, False)
