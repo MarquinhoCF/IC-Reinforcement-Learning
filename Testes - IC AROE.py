@@ -47,6 +47,7 @@ import numpy as np
 from tabulate import tabulate
 import matplotlib.pyplot as plt
 import sys
+import pandas as pd
 
 # %% [markdown]
 # ### Configurações
@@ -903,34 +904,42 @@ def comparaAvaliacoes(ambiente, indice_estado=indice_estado_geral):
     print(f'Medias = {medias}')
     print(f'O arquivo que possui maior média é o {(np.argmax(medias)) + 1}º')
     
-    #tamanho = len(avaliacoes)
-    #maior = 0
-    #for i in range(tamanho):
-    #    eps = len(avaliacoes[i])
-    #    if eps > maior:
-    #        maior = eps
-
-    #t = np.arange(1, maior+1, 1)
-    
-    #fig, ax = plt.subplots()
-    #for i in range(n):
-    #    ax.bar(t, avaliacoes[i])
-    #    plt.plot([0, maior], [medias[i], medias[i]])
-
-    #ax.set_title('Avaliações')
-    #plt.show()
 
 
 # AMBIENTE DE TESTES
+
+print('Deseja testar o ambiente Frozen lake para diferentes epsilons?\nDigite "sim" para testar:')
+resposta = input()
+if resposta == 'sim':
+    print("========================= Testando ambiente Frozen Lake para diferentes números de epsilons ===========================")
+    ambiente = old_gym.make('FrozenLake-v1')
+    indice_estado = indice_estado_geral
+    estado = ambiente.reset()
+    print('Ambiente Configurado\n')
+
+    epsilons = [1.0, 0.8, 0.6, 0.4, 0.2, 0.1]
+    print("\nDigite a quantidade de episódios a serem utilizados para o Q Learning:")
+    eps = int(input())
+
+    dados = []
+    for i in range(len(epsilons)):
+        print(f'Testando com epsilon = {epsilons[i]}')
+        Q, V, pi, Q_historico, pi_historico, retornos = q_learning(ambiente, n_episodios=eps, ini_epsilon=epsilons[i], indice_estado=indice_estado)
+        print('Criando gráfico:')
+        geraCurvaDeAprendizado(retornos)
+        dados.append({"Quantidade de 1": retornos.count(1), "Quantidade de 0": retornos.count(0)})
+        print('\n\n')
+    
+    print('Criando Tabela com os resultados obtidos:')
+    tabela = pd.DataFrame(dados, index=["episilon = 1.0", "episilon = 0.8", "episilon = 0.6", "episilon = 0.4", "episilon = 0.2", "episilon = 0.1"])
+    print(tabela)
+
+print('\n\n')
 
 # Variáveis bolleanas importantes:
 usa_arquivo = False
 
 # Testes realizados:
-
-# SCRIPT PARA O FROZEN LAKE
-#ambiente = old_gym.make('FrozenLake-v1')
-#indice_estado = indice_estado_geral
 
 ambiente : BeerGameSimplificado = BeerGameSimplificado(seed=10)
 indice_estado = indice_estado_beergame
@@ -939,7 +948,6 @@ estado = ambiente.reset()
 print('Ambiente Configurado\n')
 print(f'Estado inicial {estado}')
 
-print('\n\n')
 if (usa_arquivo):
     print("Digite o nome do ambiente testado a ser carregado\nAmbiente: ")
     nomeAmb = input()
