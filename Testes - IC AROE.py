@@ -588,7 +588,7 @@ class BeerGame(gym.Env):
     # Método 'construtor'
     def __init__(self, seed : Optional[int] = None) -> None: 
        # 1-> Definindo o espaço de ações 
-       self.pedido_max = 20 # Podem ser pedidos somente 20 cervejas por vez
+       self.pedido_max = 12 # Podem ser pedidos somente 20 cervejas por vez
        self.pedido_min = 0 # Não é possível realizar pedidos negativos (Isso não faz sentido!!)
        self.pedido_ini = 4 # O pedido inicial sempre é 4
        self.pedido_ant = self.pedido_ini # Essa variável 'pedido_ant' é uma variável auxiliar que guarda a informação sobre o pedido feito anteriormente (será atualizada a cada iteração)
@@ -601,7 +601,7 @@ class BeerGame(gym.Env):
        # 3-> Definindo o espaço de estados
        self.estoque_ini = 12 # A quantidade inicial em estoque sempre é 12
        self.transporte_ini = 4 # A quantidade inicial em transporte sempre é 4
-       self.capacidade_max = 50 # A capacidade máxima de estoque em qualquer um dos membros da cadeia de suprimentos
+       self.capacidade_max = 20 # A capacidade máxima de estoque em qualquer um dos membros da cadeia de suprimentos
        self.capacidade_min = 0 # Não é possível realizar guardar uma quantidade de cerveja negativa (Isso não faz sentido!!)
        # Definindo o observation space: limites, tipo de espaço e forma
        self.observation_space = spaces.MultiDiscrete(np.array(12*[self.capacidade_max]+[self.pedido_max]))
@@ -937,7 +937,7 @@ if resposta == 'sim':
 print('\n\n')
 
 # Variáveis bolleanas importantes:
-usa_arquivo = False
+usa_arquivo = True
 
 # Testes realizados:
 
@@ -957,14 +957,14 @@ if (usa_arquivo):
     numero = input()
     retornos, pi = carregaResultados(nomeAmb, qtdEps, numero)
 else:
-    print("========================= Executando Q leaning ===========================")
+    print("========================= Executando Q learning ===========================")
     print("\nDigite a quantidade de episódios a serem utilizados para o Q Learning:")
     eps = int(input())
     Q, V, pi, Q_historico, pi_historico, retornos = q_learning(ambiente, n_episodios=eps, indice_estado=indice_estado)
     salvaResultados(retornos, eps, pi)
 
 print('\n\nCriando gráfico:')
-geraCurvaDeAprendizado(retornos, False)
+geraCurvaDeAprendizado(retornos)
 
 print('\n\nTestando função que compara avaliações:')
 comparaAvaliacoes(ambiente, indice_estado=indice_estado)
