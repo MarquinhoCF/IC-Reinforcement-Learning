@@ -5,3 +5,9 @@ tabulate
 matplotlib
 pandas
 seaborn
+git+https://github.com/pybox2d/pybox2d
+swig
+box2d-py
+pytorch
+stable-baselines3[box2d]
+gym[box2d]
