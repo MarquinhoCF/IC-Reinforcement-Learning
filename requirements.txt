@@ -7,7 +7,10 @@ pandas
 seaborn
 git+https://github.com/pybox2d/pybox2d
 swig
-box2d-py
 pytorch
-stable-baselines3[box2d]
-gym[box2d]
+pygame
+opencv-python
+stable-baselines3
+git+https://github.com/DLR-RM/rl-baselines3-zoo.git
+poetry
+git+https://github.com/vwxyzjn/cleanrl.git

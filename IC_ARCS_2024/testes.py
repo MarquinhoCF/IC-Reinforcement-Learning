@@ -1,12 +1,19 @@
-import gym
+import gymnasium as gym
 
-amb = gym.make("LunarLander")
+from stable_baselines3 import PPO
 
-amb.reset()
+env = gym.make("CartPole-v1", render_mode="rgb_array")
+model = PPO("MlpPolicy", env, verbose=1)
+model.learn(total_timesteps=20000)
 
-for step in range(200):
-  amb.render()
-  obs, recompensa, terminado, info = amb.step(amb.action_space.sample())
-  print(recompensa)
+vec_env = model.get_env()
+obs = vec_env.reset()
 
-amb.close()
+# Modelo PPO
+for i in range(1000):
+    action, _state = model.predict(obs, deterministic=True)
+    obs, reward, done, info = vec_env.step(action)
+    vec_env.render("human")
+    # VecEnv resets automatically
+    # if done:
+    #   obs = vec_env.reset()
